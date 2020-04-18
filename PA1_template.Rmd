@@ -1,25 +1,233 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: 'Peer-graded Assignment: Course Project 1'
+author: "Shounak Shastri"
+date: "18/04/2020"
+output:
+  html_document: default
+  pdf_document: default
+  keep_md: true
 ---
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
 
+Here, we will load the dataset and check the summary. 
+
+I had already extracted the data from the zipped file when I downloaded it. 
+So I will directly load the data from my working directory in this code chunk.
+
+```{r, echo = TRUE}
+setwd("C:/Users/Intel/Documents/Datasets/Activity")
+activity <- read.csv("activity.csv")
+summary(activity)
+```
+
+From the above summary, we can see that the "Steps" column contains NAs. We will
+keep them as it is and while calculating the mean and median, we will ignore NA.
 
 
-## What is mean total number of steps taken per day?
+## What is the mean total number of steps take per day ?
 
+### We will first make a histogram of the total number of steps taken per day.
 
+After scrolling through the data, we can see that each day is divided into
+multiple intervals and the "steps" column shows the number of steps taken in
+each interval.
+
+To create a histogram, we will create a new table where we drop the "intervals"
+column and display only the total number of steps taken every day.
+
+```{r, echo = TRUE}
+totalStepsPerDay <- aggregate(steps ~ date, activity, sum, na.rm=TRUE)
+head(totalStepsPerDay)
+```
+
+Here, we can see that the new table has dropped the entry for the date
+2012-10-01. This is because all the entries in the steps column for this day
+were NA.
+
+Now we will plot the histogram
+
+```{r, echo=TRUE}
+hist(totalStepsPerDay$steps, main = "Histogram of total steps taken each day",
+     xlab = "Total Steps", 
+     ylim = c(0, 30))
+
+```
+
+### Calculating and displaying the mean and the median
+
+```{r, echo=TRUE}
+cat("The mean is: ", mean(totalStepsPerDay$steps), "\n̥")
+cat("The median is: ", median(totalStepsPerDay$steps))
+```
 
 ## What is the average daily activity pattern?
 
+Here we need to plot the time series plots for average number of steps taken.
+But these plots are with respect to the intervals and not dates. So we create a
+new table which drops the date column and contains the average number of steps 
+for each interval. 
 
+We do this in the same way we made the totalStepsPerDay table above.
 
-## Imputing missing values
+```{r, echo=TRUE}
+avgStepsPerInterval <- aggregate(steps ~ interval, activity, mean, na.rm=TRUE)
+head(avgStepsPerInterval)
+```
 
+Now we plot the average steps
 
+```{r, echo=TRUE}
 
-## Are there differences in activity patterns between weekdays and weekends?
+plot(avgStepsPerInterval$interval, avgStepsPerInterval$steps, type = "l", 
+     main = "Time series plot for avg steps taken per interval", 
+     xlab = "Interval",
+     ylab = "avg Steps")
+
+```
+
+Now, we need to find the interval which has the maximum number of average steps
+
+We can see from the above figure that the max number occurs somewhere between 
+500 and 1000. This would serve as a good point to check the validity of our
+result.
+
+```{r, echo=TRUE}
+maxStepsInterval <- avgStepsPerInterval[which.max(avgStepsPerInterval$steps), ]$interval
+cat("The interval with the max average steps is: ", maxStepsInterval)
+```
+
+We can see the answer is between 500 and 1000 as we discussed above. This means 
+our analysis is correct.
+
+## Inputting missing values
+
+We saw from our first code chunk that there are several NA values in the steps
+column of our original data. Here we will replace the NA values with some number
+
+### Strategy for replacing the NA values
+As the NA values are in the "steps" column, we can take replace them in two ways
+
+1. Make all the NA values as 0.
+  This will indicate that the person is sedentary during the whole day. Although
+  this seems a resonable option, this shouldn't be considered here as it is 
+  impossible to not take a single step in a whole day for a person without any 
+  serious disabilities. This option will skew our data to the left and it would 
+  be easier if we drop the first day completely.
+
+2. Another option is to replace the values with the average values for that 
+  interval. We already have this data in the above code chunk. This might also
+  a data which a closer to the actual scenario.
+
+```{r, echo = TRUE}
+# First copy the original data in a new table
+cleanedActivity <- activity
+
+# Check to see if the steps value is NA and replace it with average value if
+# TRUE
+
+for(i in 1:nrow(cleanedActivity)){
+    if(is.na(cleanedActivity[i,]$steps)){
+        cleanedActivity[i,]$steps <- avgStepsPerInterval[cleanedActivity[i,]$interval == avgStepsPerInterval$interval, ]$steps
+    }
+}
+```
+
+On checking the data, we can see that the NAs in step column have been replaced 
+average steps according to the interval.
+
+But, we can also see that some values are floats and some are integers. We need 
+a to make all values as integers as it would simplify further analysis.
+
+```{r, echo= TRUE}
+cleanedActivity$steps <- as.integer(cleanedActivity$steps)
+class(cleanedActivity$steps)
+```
+
+Now, our new data set is ready.
+
+### Plotting the histogram for new data
+```{r, echo=TRUE}
+totalStepsPerDayClean <- aggregate(steps ~ date, cleanedActivity, sum, na.rm=TRUE)
+
+hist(totalStepsPerDayClean$steps, 
+     main = "Histogram of total steps taken each day after cleaning data",
+     xlab = "Total Steps", 
+     ylim = c(0, 40))
+```
+
+### Calculating the mean and median of cleaned data
+
+```{r, echo=TRUE}
+cat("The mean is: ", mean(totalStepsPerDayClean$steps), "\n̥")
+cat("The median is: ", median(totalStepsPerDayClean$steps))
+```
+
+Here the difference between our cleaned data and the previous data is 
+
+```{r, echo=TRUE}
+cat("difference between means: ", mean(totalStepsPerDayClean$steps) - mean(totalStepsPerDay$steps), "\n")
+cat("difference between medians: ", median(totalStepsPerDayClean$steps) - median(totalStepsPerDay$steps), "\n")
+```
+
+The negative values indicate that our distribution has shifted to the left after
+cleaning the data. This goes according to our intuition as more values
+are considered.
+
+## Are there differences in activity patterns on Weekdays and Weekends?
+
+To check this, we first need to check the format of the date column of the 
+cleaned data.
+
+```{r, echo=TRUE}
+class(cleanedActivity$date)
+```
+
+Observe that it is a factor. We need to convert it to date-time data so that we
+can use the Weekdays() function.
+
+```{r, echo=TRUE}
+cleanedActivity$date <- as.Date(strptime(cleanedActivity$date, format="%Y-%m-%d"))
+```
+
+Now, we can use the Weekdays function and convert all the dates to either 
+"Weekdays or "Weekends" using a for loop.
+
+```{r, echo=TRUE}
+cleanedActivity$day <- weekdays(cleanedActivity$date)
+for (i in 1:nrow(cleanedActivity)) {
+    if (cleanedActivity[i,]$day == "Saturday" | cleanedActivity[i,]$day == "Sunday") {
+        cleanedActivity[i,]$day<-"weekend"
+    }
+    else{
+        cleanedActivity[i,]$day<-"weekday"
+    }
+}
+WeekdayVSWeekend <- aggregate(cleanedActivity$steps ~ cleanedActivity$interval + cleanedActivity$day, cleanedActivity, mean)
+
+head(WeekdayVSWeekend)
+```
+
+Give proper names to the columns and conver the steps into integers
+
+```{r, echo=TRUE}
+names(WeekdayVSWeekend) <- c("interval", "dayType", "steps")
+WeekdayVSWeekend$steps <- as.integer(WeekdayVSWeekend$steps)
+head(WeekdayVSWeekend)
+```
+
+Now we will plot the graphs
+
+```{r, echo = TRUE}
+library(lattice)
+
+xyplot(steps ~ interval | dayType,
+       WeekdayVSWeekend, type = "l",
+       layout = c(1, 2), 
+       xlab = "Interval",
+       ylab = "Number of steps")
+```
