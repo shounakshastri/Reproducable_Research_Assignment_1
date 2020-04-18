@@ -1,3 +1,13 @@
+## Note:
+
+This repo contains two html files.
+Ver_1 is contains the code which was used to store figures in the folder.
+For some reason, when I run this file, the output says "PNG 2" instead of
+displaying the figures.
+
+Ver_2 is the file with embedded figures. I have removed the png() commands
+from the code and generated the file.
+
 ## Introduction
 
 It is now possible to collect a large amount of data about personal
